@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Shooter Koko Angkasa</title>
+<style>
+html, body {
+  margin:0; padding:0; font-family: Arial; overflow:hidden; height:100%;
+  overscroll-behavior: none; touch-action: none;
+}
+body { background:black; }
+#hud { position: fixed; top:10px; width:100%; display:flex; justify-content:space-between; padding:0 20px; font-size:18px; color:white; z-index:10; }
+#game { position: relative; height:100vh; width:100%; overflow:hidden; background: radial-gradient(ellipse at center, #000000 0%, #0d1b2a 100%);}
+.star { position:absolute; width:2px; height:2px; background:white; border-radius:50%; }
+.asteroid { position:absolute; border-radius:50%; cursor:pointer; }
+.laser { width:6px; height:20px; background:red; position:absolute; border-radius:3px; z-index:5;}
+#player { width:60px; height:60px; position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:5;}
+#ship-body { width:60px; height:60px; background:linear-gradient(to bottom, #ff4081, #ffeb3b); border-radius:10px; position:relative; }
+#muzzle { width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-top:20px solid cyan; position:absolute; bottom:-20px; left:50%; transform:translateX(-50%); border-radius:3px; }
+#popup { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); justify-content:center; align-items:center; z-index:20; }
+#popup-content { background:white; padding:20px; border-radius:15px; width:90%; max-width:400px; text-align:left; }
+button { padding:10px; margin-top:10px; border:none; background:#ff4081; color:white; border-radius:10px; cursor:pointer; display:block; width:100%; margin-bottom:5px; }
+.correct { background:#4caf50 !important; }
+.wrong { background:#f44336 !important; }
+#shoot-btn { position: fixed; bottom: 10px; right: 10px; padding:15px; font-size:20px; background:red; color:white; border:none; border-radius:50%; z-index:15; }
+#message { position: fixed; top:50%; left:50%; transform:translate(-50%, -50%) scale(0); font-size:50px; color:#ffeb3b; text-shadow: 2px 2px 10px #ff4081; animation: pop 1s forwards; z-index:30; display:none; text-align:center;}
+@keyframes pop { 0% { transform:translate(-50%, -50%) scale(0); opacity:0; } 50% { transform:translate(-50%, -50%) scale(1.2); opacity:1; } 100% { transform:translate(-50%, -50%) scale(1); opacity:1; } }
+</style>
+</head>
+<body>
+
+<div id="hud">❤️ Nyawa: <span id="life">5</span> | ⭐ Markah: <span id="score">0</span></div>
+<div id="game">
+  <div id="player">
+    <div id="ship-body">
+      <div id="muzzle"></div>
+    </div>
+  </div>
+</div>
+
+<button id="shoot-btn">🚀</button>
+
+<div id="popup">
+  <div id="popup-content">
+    <p id="soalan"></p>
+    <div id="jawapan-buttons"></div>
+  </div>
+</div>
+
+<div id="message"></div>
+
+<script>
+let life = 5;
+let score = 0;
+const gameDiv = document.getElementById('game');
+const player = document.getElementById('player');
+const muzzle = document.getElementById('muzzle');
+const popup = document.getElementById('popup');
+const soalanEl = document.getElementById('soalan');
+const jawapanButtonsDiv = document.getElementById('jawapan-buttons');
+const messageEl = document.getElementById('message');
+
+const questions = [
+  { q:"Apakah yang dimaksudkan dengan reka bentuk kurikulum menurut Tyler (1949)?", options:["Satu alternatif prosedur merangka, melaksanakan & menilai kurikulum","Program TV","Permainan kanak-kanak","Buku cerita"], answer:0 },
+  { q:"Nyatakan tiga proses utama dalam reka bentuk kurikulum.", options:["Merangka, melaksanakan, menilai","Menulis buku sahaja","Mewarna aktiviti","Mengajar muzik"], answer:0 },
+  { q:"Apakah maksud model kurikulum?", options:["Panduan/rangka kerja sistematik membangunkan kurikulum","Permainan komputer","Program televisyen","Aktiviti sukan"], answer:0 },
+  { q:"Mengapakah Model Rasional/Objektif Tyler dianggap model klasik?", options:["Antara model awal & banyak digunakan","Kerana moden","Sukar digunakan","Tidak relevan"], answer:0 },
+  { q:"Nyatakan empat soalan asas Model Kurikulum Tyler.", options:["Tujuan pendidikan, pengalaman, penyusunan, penilaian","Buku, aktiviti, muzik, seni","TV, filem, permainan, cerita","Makanan, sukan, muzik, permainan"], answer:0 },
+  { q:"Apakah fokus utama soalan pertama dalam Model Tyler?", options:["Menentukan objektif pendidikan","Mewarna buku","Belajar muzik","Aktiviti sukan"], answer:0 },
+  { q:"Apakah yang dimaksudkan dengan pengalaman pembelajaran?", options:["Aktiviti & pengalaman untuk capai objektif","Muzik & permainan","Program TV","Aktiviti sukan"], answer:0 },
+  { q:"Mengapakah pengalaman pembelajaran perlu dipilih dengan teliti?", options:["Supaya berkesan & selaras objektif","Supaya menyeronokkan","Supaya susah","Supaya cepat habis"], answer:0 },
+  { q:"Apakah kepentingan pengorganisasian pengalaman pembelajaran?", options:["Pembelajaran tersusun & berkesan","Untuk hiburan","Untuk TV","Untuk permainan"], answer:0 },
+  { q:"Bagaimana pengalaman pembelajaran boleh disusun dengan berkesan?", options:["Logik, berurutan, mudah→sukar","Rawak","Bergantung pada muzik","Bergantung pada warna"], answer:0 },
+  { q:"Apakah peranan penilaian dalam Model Kurikulum Tyler?", options:["Menentukan pencapaian objektif","Untuk hiburan","Untuk TV","Untuk sukan"], answer:0 },
+  { q:"Mengapa penilaian penting dalam kurikulum?", options:["Menilai keberkesanan PdP","Supaya menyeronokkan","Supaya cepat habis","Supaya mudah"], answer:0 },
+  { q:"Bezakan reka bentuk kurikulum & model kurikulum.", options:["Reka bentuk=proses, model=panduan","Sama sahaja","Buku dan permainan","TV & muzik"], answer:0 },
+  { q:"Bagaimana Model Tyler membantu guru?", options:["Merancang objektif, aktiviti & penilaian","Belajar muzik","Permainan","Program TV"], answer:0 },
+  { q:"Adakah Model Tyler masih relevan digunakan sekarang?", options:["Ya, jelas & sistematik","Tidak relevan","Sukar digunakan","Hanya untuk kanak-kanak"], answer:0 }
+];
+
+let remainingQuestions = [...questions];
+
+function updateHUD(){ document.getElementById('life').innerText=life; document.getElementById('score').innerText=score; }
+
+// Disable scroll iOS
+document.body.addEventListener('touchmove', e=>{ e.preventDefault(); }, {passive:false});
+
+// Bintang
+for(let i=0;i<100;i++){
+  const star=document.createElement('div');
+  star.className='star';
+  star.style.left=Math.random()*100+'%';
+  star.style.top=Math.random()*100+'%';
+  gameDiv.appendChild(star);
+}
+
+// Spawn asteroid berwarna & saiz rawak
+function spawnAsteroid(){
+  if(remainingQuestions.length===0) return showMessage("AMAZING! Skor anda: "+score);
+  const asteroid=document.createElement('div');
+  asteroid.className='asteroid';
+  const size = Math.random()*30+30;
+  asteroid.style.width=size+'px';
+  asteroid.style.height=size+'px';
+  asteroid.style.left=Math.random()*90+'%';
+  asteroid.style.top=Math.random()*50+'%';
+  asteroid.style.background = `hsl(${Math.random()*360},70%,50%)`;
+  let dx=(Math.random()*1+0.2)*(Math.random()<0.5?-1:1);
+  let dy=(Math.random()*1+0.2)*(Math.random()<0.5?-1:1);
+  
+  const move=setInterval(()=>{
+    let x=parseFloat(asteroid.style.left);
+    let y=parseFloat(asteroid.style.top);
+    if(x+dx<0||x+dx>90) dx=-dx;
+    if(y+dy<0||y+dy>50) dy=-dy;
+    asteroid.style.left=x+dx+'%';
+    asteroid.style.top=y+dy+'%';
+  },30);
+  
+  gameDiv.appendChild(asteroid);
+}
+
+// Spawn awal 5 asteroid
+for(let i=0;i<5;i++) spawnAsteroid();
+
+// Laser keluar dari muzzle (hanya trigger satu soalan)
+function shoot(){
+  const laser=document.createElement('div');
+  laser.className='laser';
+  laser.active = true;
+  const muzzleRect = muzzle.getBoundingClientRect();
+  const gameRect = gameDiv.getBoundingClientRect();
+  laser.style.left=(muzzleRect.left - gameRect.left + muzzleRect.width/2 - 3)+'px';
+  laser.style.top=(muzzleRect.top - gameRect.top - 10)+'px';
+  gameDiv.appendChild(laser);
+  
+  const interval=setInterval(()=>{
+    laser.style.top=(laser.offsetTop-10)+'px';
+    document.querySelectorAll('.asteroid').forEach(ast=>{
+      if(!laser.active) return;
+      const l=laser.getBoundingClientRect();
+      const a=ast.getBoundingClientRect();
+      if(!(l.right<a.left||l.left>a.right||l.bottom<a.top||l.top>a.bottom)){
+        laser.active=false;
+        showQuestion(ast);
+        ast.remove();
+        laser.remove();
+        clearInterval(interval);
+      }
+    });
+    if(laser.offsetTop<0){ laser.remove(); clearInterval(interval);}
+  },10);
+}
+
+// Soalan
+function showQuestion(ast){
+  if(remainingQuestions.length===0) return showMessage("AMAZING! Skor anda: "+score);
+  const qIndex=Math.floor(Math.random()*remainingQuestions.length);
+  const q=remainingQuestions[qIndex];
+  remainingQuestions.splice(qIndex,1);
+
+  soalanEl.innerText=q.q;
+  jawapanButtonsDiv.innerHTML='';
+
+  let shuffled=q.options.map((v,i)=>({text:v,index:i})).sort(()=>Math.random()-0.5);
+  shuffled.forEach(opt=>{
+    const btn=document.createElement('button');
+    btn.innerText=opt.text;
+    btn.onclick=()=>{
+      if(opt.index===q.answer){ score+=10; btn.classList.add('correct'); }
+      else { life--; btn.classList.add('wrong'); }
+      updateHUD();
+      setTimeout(()=>{
+        popup.style.display='none';
+        if(life<=0){ showMessage("TRY AGAIN! Skor anda: "+score); }
+        else spawnAsteroid();
+      },800);
+    };
+    jawapanButtonsDiv.appendChild(btn);
+  });
+
+  popup.style.display='flex';
+}
+
+// Mobile drag player
+let dragging=false;
+player.addEventListener('touchstart', e=>{ dragging=true; });
+player.addEventListener('touchend', e=>{ dragging=false; });
+player.addEventListener('touchmove', e=>{
+  if(dragging){
+    let touchX=e.touches[0].clientX;
+    let newLeft=Math.max(0,Math.min(gameDiv.offsetWidth-player.offsetWidth, touchX-player.offsetWidth/2));
+    player.style.left=newLeft+'px';
+  }
+});
+
+// Tombol tembak mobile
+document.getElementById('shoot-btn').addEventListener('click', shoot);
+
+// Desktop controls
+document.addEventListener('keydown', e=>{
+  if(e.key===' '){ shoot(); }
+  if(e.key==='ArrowLeft'){ player.style.left = Math.max(0,player.offsetLeft-10)+'px'; }
+  if(e.key==='ArrowRight'){ player.style.left = Math.min(gameDiv.offsetWidth-60,player.offsetLeft+10)+'px'; }
+});
+
+function showMessage(msg){
+  messageEl.innerText=msg;
+  messageEl.style.display='block';
+  setTimeout(()=>{ location.reload(); },3000);
+}
+</script>
+
+</body>
+</html>
